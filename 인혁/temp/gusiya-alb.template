@@ -1,0 +1,168 @@
+{
+    "Description": "ALB for gusiya web",
+    "Outputs": {
+        "TargetGroup": {
+            "Description": "TargetGroup",
+            "Export": {
+                "Name": {
+                    "Fn::Sub": "${AWS::StackName}-target-group"
+                }
+            },
+            "Value": {
+                "Ref": "TargetGroup"
+            }
+        },
+        "URL": {
+            "Description": "Helloworld URL",
+            "Value": {
+                "Fn::Join": [
+                    "",
+                    [
+                        "http://",
+                        {
+                            "Fn::GetAtt": [
+                                "LoadBalancer",
+                                "DNSName"
+                            ]
+                        }
+                    ]
+                ]
+            }
+        }
+    },
+    "Resources": {
+        "Listener": {
+            "Properties": {
+                "DefaultActions": [
+                    {
+                        "TargetGroupArn": {
+                            "Ref": "TargetGroup"
+                        },
+                        "Type": "forward"
+                    }
+                ],
+                "LoadBalancerArn": {
+                    "Ref": "LoadBalancer"
+                },
+                "Port": "80",
+                "Protocol": "HTTP"
+            },
+            "Type": "AWS::ElasticLoadBalancingV2::Listener"
+        },
+        "LoadBalancer": {
+            "Properties": {
+                "Scheme": "internet-facing",
+                "SecurityGroups": [
+                    {
+                        "Ref": "LoadBalancerSG"
+                    }
+                ],
+                "Subnets": {
+                    "Fn::Split": [
+                        ",",
+                        {
+                            "Fn::ImportValue": {
+                                "Fn::Join": [
+                                    "-",
+                                    [
+                                        {
+                                            "Fn::Select": [
+                                                0,
+                                                {
+                                                    "Fn::Split": [
+                                                        "-",
+                                                        {
+                                                            "Ref": "AWS::StackName"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "cluster-public-subnets"
+                                    ]
+                                ]
+                            }
+                        }
+                    ]
+                }
+            },
+            "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer"
+        },
+        "LoadBalancerSG": {
+            "Properties": {
+                "GroupDescription": "Web Load Balancer",
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "80",
+                        "IpProtocol": "tcp",
+                        "ToPort": "80"
+                    }
+                ],
+                "VpcId": {
+                    "Fn::ImportValue": {
+                        "Fn::Join": [
+                            "-",
+                            [
+                                {
+                                    "Fn::Select": [
+                                        0,
+                                        {
+                                            "Fn::Split": [
+                                                "-",
+                                                {
+                                                    "Ref": "AWS::StackName"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                "cluster-vpc-id"
+                            ]
+                        ]
+                    }
+                }
+            },
+            "Type": "AWS::EC2::SecurityGroup"
+        },
+        "TargetGroup": {
+            "DependsOn": "LoadBalancer",
+            "Properties": {
+                "HealthCheckIntervalSeconds": "20",
+                "HealthCheckProtocol": "HTTP",
+                "HealthCheckTimeoutSeconds": "15",
+                "HealthyThresholdCount": "5",
+                "Matcher": {
+                    "HttpCode": "200"
+                },
+                "Port": "80",
+                "Protocol": "HTTP",
+                "UnhealthyThresholdCount": "3",
+                "VpcId": {
+                    "Fn::ImportValue": {
+                        "Fn::Join": [
+                            "-",
+                            [
+                                {
+                                    "Fn::Select": [
+                                        0,
+                                        {
+                                            "Fn::Split": [
+                                                "-",
+                                                {
+                                                    "Ref": "AWS::StackName"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                "cluster-vpc-id"
+                            ]
+                        ]
+                    }
+                }
+            },
+            "Type": "AWS::ElasticLoadBalancingV2::TargetGroup"
+        }
+    }
+}
